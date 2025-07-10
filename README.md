@@ -18,22 +18,22 @@
 *PCG02* is a compact answer to the lab exercise of the third chapter of the [PCG Book](https://pcgbook.com/), entitled ["The search-based approach"](https://www.pcgbook.com/chapter02.pdf) and written by J.Togelius & N.Shaker.
 
 ### Exercise
-> Roguelike games are a type of games that use PCG for level generation; in fact, the runtime generation and thereafter the infinite supply of levels is a key feature of this genre. As in the original game Rogue from 1980, a roguelike typically lets you control an agent in a labyrinthine dungeon, collecting treasures, fighting monsters and levelling up. A level in such a game thus consists of rooms of different sizes containing monsters and items and connected by corridors.
+> Roguelike games are a type of games that use PCG for level generation; in fact, the runtime generation and thereafter the infinite supply of levels is a key feature of this genre. As in the original game Rogue from 1980, a roguelike typically lets you control an agent in a labyrinthine dungeon, collecting treasures, fighting monsters and levelling up. A level in such a game thus consists of rooms of different sizes containing monsters and items and connected by corridors. (J.Togelius & N.Shaker)
 
-> The purpose of this exercise is to allow you to understand the search-based approach through implementing a search-based dungeon generator. Your generator should evolve playable dungeons for an imaginary roguelike. The phenotype of the dungeons should be 2D matrices (e.g. size 50 × 50) where each cell is one of the following: free space, wall, starting point, exit, monster, treasure. It is up to you whether to add other possible types of cell content, such as traps, teleporters, doors, keys, or different types of treasures and monsters. One of your tasks is to explore different content representations and quality measures in the context of dungeon generation.
+> The purpose of this exercise is to allow you to **understand the search-based approach through implementing a search-based dungeon generator**. Your generator should evolve playable dungeons for an imaginary roguelike. **The phenotype of the dungeons should be 2D matrices (e.g. size 50 × 50) where each cell is one of the following: free space, wall, starting point, exit, monster, treasure.** It is up to you whether to add other possible types of cell content, such as traps, teleporters, doors, keys, or different types of treasures and monsters. One of your tasks is to explore different content representations and quality measures in the context of dungeon generation. (J.Togelius & N.Shaker)
 
 ### Implementation
-The main challenge in PCG is always representation. This project defines a genotype as a set of points of interest (POIs) on the map. Dungeons are grown deterministically around these POIs, and circulation is ensured using a minimum spanning tree. This structure can easily be extended.
+The main challenge in Procedural Content Generation (PCG) is always representation. As the phenotype is given by the exercise, a crucial point is to define a genotype that is expressive enough to generate a variety of dungeon while fitting to the phenotype definition. We define a genotype as a set of Points Of Interest (POIs) on the map and parameters for deterministic generation. Dungeons are grown around these POIs, and circulation is ensured using a minimum spanning tree. This structure can easily be extended.
 
-A basic genetic algorithm is implemented using the [μ + λ strategy](https://algorithmafternoon.com/strategies/mu_plus_lambda_evolution_strategy/), with adaptive mutation rates applied to: (a) The number, placement and types of POIs ; (b) Region-growing iterations ; (c) Circulation
+A basic genetic algorithm is implemented using the [μ + λ strategy](https://algorithmafternoon.com/strategies/mu_plus_lambda_evolution_strategy/), with adaptive mutation rates applied to: (a) The number, placement and types of POIs ; (b) Region-growing iterations ; (c) Circulation.
 
-Various fitness functions were tested, with a focus on producing longer dungeons featuring diverse rooms and pathways.
+Various fitness functions were tested, with a focus on producing long dungeons that features diverse rooms and pathways.
 
 ## ✨ Features Overview
-- Evolutionary generation of dungeon maps (with Genotype encoding)
-- Fast A* pathfinding and feature extraction
+- Evolutionary generation of dungeon maps
+- Fast A* pathfinding
 - Visualization for dungeon structure, walkability, and diversity
-- Tools for measuring corridor/room ratios, room diversity, and completeness regarding
+- Tools for measuring a dungeon feature and a population fitness, depending on the corridor/room ratios, room diversity ...
 
 ## 🚀 Quick Start
 1. **Clone the repo**  
