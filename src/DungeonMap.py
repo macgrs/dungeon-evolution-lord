@@ -13,32 +13,83 @@ from matplotlib.colors import ListedColormap
 
 import logging
 
-from typing import Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from Genotype import Genotype
-from AStarMaze import AStarMaze
+from .Genotype import Genotype
+from .AStarMaze import AStarMaze
 
 
 class DungeonMap:
-    def __init__(self, dimension:int, genotype:Genotype):
-        # self._id = str(uuid.uuid4())[:8]
-        self.dungeon_shape= (dimension,dimension)
-        self.set_dungeon_Genotype(genotype=genotype)
-        self.dungeonmap=None
-        self.shortest_path=None
-        self.shortest_path_rooms=None
-        self.feature_dict={}
-        self.genotype = genotype
+    """
+    Core class for growing, previewing, and computing features of a playable dungeon from a Genotype.
 
-    # Genotype
-    def set_dungeon_Genotype(self, genotype: Genotype):
+    This class supports:
+    + dungeon generation, using growing regions algorithm from the genotype Points Of Interest (POI) and
+    linkage of the rooms using extended minimum spanning tree between the POIs 
+    + dungeon preview utilities, with different plots
+    + dungeon gameplay features such as path validation, room connectivity, placement of POIs
+
+    Attributes:
+        genotype (Genotype): The genotype from which this dungeon is grown.
+        dungeon (np.ndarray): 2D numpy array representing the dungeon layout.
+        features (Dict[str, Any]): Computed features and statistics about the dungeon.
+        logger (logging.Logger): Logger instance for this class.
+    """
+    def __init__(self, dimension: int, genotype: Genotype) -> None:
+        """
+        Initialize a DungeonMap instance.
+
+        Args:
+            dimension (int): The width and height of the dungeon (dungeon is always square).
+            genotype (Genotype): The Genotype instance encoding points of interest and parameters.
+        """
+        self.dungeon_shape: Tuple[int, int] = (dimension, dimension)
+        self.set_dungeon_Genotype(genotype=genotype)
+        self.dungeonmap: Optional[np.ndarray] = None
+        self.shortest_path: Optional[Any] = None
+        self.shortest_path_rooms: Optional[Any] = None
+        self.feature_dict: dict = {}
+        self.genotype: Genotype = genotype
+
+        self.logger = logging.getLogger(f"{__name__}.DungeonMap")
+        self.logger.setLevel(logging.INFO)
+        if not self.logger.hasHandlers():
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
+            self.logger.addHandler(handler)
+
+    # GENOTYPE
+    # --------
+    def set_dungeon_Genotype(self, genotype: Genotype) -> None:
+        """
+        Assigns a new genotype to the dungeon.
+
+        Args:
+            genotype (Genotype): The genotype to assign.
+
+        Raises:
+            ValueError: If the genotype is not valid for this dungeon's dimensions.
+        """
         if genotype is not None:
             if genotype.is_valid(xy_bounds=self.dungeon_shape):        
                 self.genotype=genotype
             else:
                 raise ValueError(f"Provided Genotype is not valid regarding DungeonMap spec, maybe some pois out of bounds ?")
 
-    def get_dungeon_entrypoints_positions(self, upscaled):
+    def get_dungeon_entrypoints_positions(self, upscaled: bool) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+        """
+        Returns the (entry, exit) positions from the genotype.
+
+        Args:
+            upscaled (bool): If True, multiplies entry/exit coordinates by 2 as the playable/upscaled dungeon is twice the size
+            of the genotype shape
+
+        Returns:
+            Tuple[Tuple[int, int], Tuple[int, int]]: (entry, exit) positions as (x, y) tuples.
+
+        Raises:
+            ValueError: If the genotype does not have POIs set.
+        """
         if self.genotype.pois == None:
             raise ValueError(f"Dungeon' genotype does not have pois: {self.genotype.pois}")
         d_in = self.genotype.pois[np.where(self.genotype.pois[:,2] == 2)][0,:2]
@@ -48,21 +99,24 @@ class DungeonMap:
         else:
             return tuple(d_in), tuple(d_out)
 
-    # Dungeon features extraction
-    def extract_dungeon_features(self) -> dict | None:
+    # DUNGEON FEATURES
+    # ----------------
+    def extract_dungeon_features(self) -> Optional[dict]:
         """
-            + corridorness(int): the corridor/room tile ratio, for the whole dungeon
-            + nolliness(int): the ratio of empty to walkable spaces
-            + spath_length(int): the length of the shortest path
-            + spath_rooms_types_completeness_ratio(int): the ratio of the types of rooms crossed by the shortest path, on the number of possible rooms let by the Genotype. If =1, all the Genotype' room types are crossed
-            + spath_rooms_diversity_ratio(int): measures the variety of rooms crossed (not always the same)
-            + spath_corridorness(int): the corridor/room tile ratio, for the shortest path
+        Extracts and computes various features/statistics of the dungeon:
 
-        Raises:
-            ValueError: _description_
+        - corridorness (float): The corridor/room tile ratio for the whole dungeon.
+        - nolliness (float): The ratio of empty to walkable spaces.
+        - spath_length (int): The length of the shortest path.
+        - spath_rooms_types_completeness_ratio (float): Ratio of room types crossed by the shortest path over possible room types.
+        - spath_rooms_diversity_ratio (float): Diversity of rooms crossed by the shortest path.
+        - spath_corridorness (float): Corridor/room tile ratio for the shortest path.
 
         Returns:
-            bool: _description_
+            Optional[dict]: The feature dictionary if extraction succeeded, None otherwise.
+
+        Raises:
+            ValueError: If the dungeon map has not been computed/generated yet.
         """
 
         ## Dungeon map
@@ -126,12 +180,27 @@ class DungeonMap:
         return feature_dict
 
     def _get_walkable_dungeon_surfaces(self) -> np.ndarray:
+        """
+        Returns a binary array of the dungeonmap where walkable tiles are marked as 1, others as 0.
+
+        Returns:
+            np.ndarray: Walkable surface mask (same shape as dungeonmap).
+        """
         if not isinstance(self.dungeonmap, np.ndarray):
             raise ValueError(f"No dungeon map has been provided, dungeonmap={self.dungeonmap}")
         convert_to_ones_and_zeros = np.vectorize(lambda x: 1 if x == 0 else 0, otypes=[int])
         return convert_to_ones_and_zeros(self.dungeonmap)
     
-    def _solve_shortestpath_in_dungeon(self): # -> np.ndarray
+    def _solve_shortestpath_in_dungeon(self) -> Optional[List[Tuple[int, int]]]:
+        """
+        Computes the shortest path in the dungeon using A* implemented with AStarMaze class.
+
+        Returns:
+            Optional[List[Tuple[int, int]]]: The shortest path object (format depends on implementation).
+
+        Raises:
+            ValueError: If pathfinding fails or entry/exit are missing.
+        """
         arr_walkable = self._get_walkable_dungeon_surfaces()
         walkable_dungeon_as_maze = AStarMaze(maze=arr_walkable)
         d_in, d_out = self.get_dungeon_entrypoints_positions(upscaled=True)
@@ -140,7 +209,17 @@ class DungeonMap:
 
 
     # Generate
-    def grow_dungeonmap_from_genotype(self):
+    def grow_dungeonmap_from_genotype(self) -> None:
+        """
+        Grows (generates) the dungeon map (`self.dungeonmap`) as a 2D numpy array
+        from the current genotype's POIs and growth procedure.
+
+        This method applies deterministic procedural rules - growing regions, defining a circulation graph between
+        POIs using minimum spanning tree - to produce a playable dungeon map, with rooms, corridors, and connections from the genotype.
+
+        Raises:
+            ValueError: If the genotype is not valid or not set.
+        """
         if self.genotype.pois == None:
             raise ValueError(f"Dungeon' genotype does not have pois, can't grow a dungeon from nothing: {self.genotype.pois}")
         logging.info(f"--- Growing dungeonmap with {len(self.genotype.pois)} pois ---")

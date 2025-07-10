@@ -1,15 +1,41 @@
-import numpy as np
-import heapq
 import logging
+import heapq
+import numpy as np
+from typing import Any, List, Optional, Tuple
 
 class AStarMaze:
+    """
+    AStarMaze resolves the A* shortest path search on a 2D numpy maze.
+    The maze should be a 2D numpy array with 0 for free cells and any other value for obstacles.
+
+    Attributes:
+        maze (np.ndarray): The 2D numpy array representing the maze grid.
+        rows (int): The number of rows in the maze.
+        cols (int): The number of columns in the maze.
+        logger (logging.Logger): Logger instance for this class.
+
+    Example:
+        >>> maze = np.zeros((5, 5), dtype=int)
+        >>> astar = AStarMaze(maze)
+        >>> path = astar.solve_shortest_path((0, 0), (4, 4))
+    """
     class Node:
-        def __init__(self, position, parent=None):
-            self.position = position
-            self.parent = parent
-            self.g = 0
-            self.h = 0
-            self.f = 0
+        """
+        Node for use in the A* algorithm.
+
+        Attributes:
+            position (Tuple[int, int]): (x, y) position in the maze.
+            parent (Optional[AStarMaze.Node]): Parent node in the path.
+            g (float): Cost from start to current node.
+            h (float): Heuristic cost from current node to end.
+            f (float): Total cost (g + h).
+        """
+        def __init__(self, position: Tuple[int, int], parent: Optional["AStarMaze.Node"] = None) -> None:
+            self.position: Tuple[int, int] = position
+            self.parent: Optional["AStarMaze.Node"] = parent
+            self.g: float = 0
+            self.h: float = 0
+            self.f: float = 0
 
         def __lt__(self, other):
             return self.f < other.f
@@ -17,21 +43,38 @@ class AStarMaze:
         def __eq__(self, other):
             return self.position == other.position
 
-    def __init__(self, maze: np.ndarray, log_level=logging.WARNING):
+    def __init__(self, maze: np.ndarray, log_level: int = logging.WARNING) -> None:
+        """
+        Initializes the AStarMaze instance.
+
+        Args:
+            maze (np.ndarray): 2D numpy array representing the maze.
+            log_level (int): Logging level for this instance.
+        """
         if not isinstance(maze, np.ndarray):
             raise TypeError("Maze must be a numpy ndarray.")
         if maze.ndim != 2:
             raise ValueError("Maze must be a 2D numpy array.")
-        self.maze = maze
+        self.maze: np.ndarray = maze
         self.rows, self.cols = maze.shape
 
-        logging.basicConfig(
-            level=log_level,
-            format="%(levelname)s:%(message)s"
-        )
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(f"{__name__}.AStarMaze")
+        self.logger.setLevel(log_level)
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
+        if not self.logger.hasHandlers():
+            self.logger.addHandler(handler)
 
-    def _is_valid_position(self, position):
+    def _is_valid_position(self, position: Tuple[int, int]) -> bool:
+        """
+        Checks if a position is within the bounds of the maze and not an obstacle.
+
+        Args:
+            position (Tuple[int, int]): The (x, y) position to check.
+
+        Returns:
+            bool: True if position is valid and free, False otherwise.
+        """
         x, y = position
         return (
             0 <= x < self.rows and
@@ -39,11 +82,30 @@ class AStarMaze:
             self.maze[x, y] == 0
         )
 
-    def _heuristic(self, pos1, pos2): # -> List[] | None
-        # Euclidean distance (squared)
+    def _heuristic(self, pos1: Tuple[int, int], pos2: Tuple[int, int]) -> float:
+        """
+        Returns the squared Euclidean distance heuristic between two points.
+
+        Args:
+            pos1 (Tuple[int, int]): First position.
+            pos2 (Tuple[int, int]): Second position.
+
+        Returns:
+            float: The squared Euclidean distance.
+        """
         return (pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2
 
-    def solve_shortest_path(self, start, end):
+    def solve_shortest_path(self, start: Tuple[int, int], end: Tuple[int, int]) -> Optional[List[Tuple[int, int]]]:
+        """
+        Solves for the shortest path from start to end using the A* algorithm.
+
+        Args:
+            start (Tuple[int, int]): Start position (x, y).
+            end (Tuple[int, int]): End position (x, y).
+
+        Returns:
+            Optional[List[Tuple[int, int]]]: The shortest path as a list of positions, or None if no path exists.
+        """
         if not (isinstance(start, tuple) and isinstance(end, tuple)):
             raise TypeError("Start and end must be tuples (x, y).")
 
